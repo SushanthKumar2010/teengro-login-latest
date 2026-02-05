@@ -115,7 +115,8 @@ questionForm?.addEventListener("submit", (e) => {
  * SUPABASE CONFIG
  *********************************************************/
 const SUPABASE_URL = "https://ctquajydjitfjhqvezfz.supabase.co";
-const SUPABASE_ANON_KEY = "YOUR_ANON_KEY_HERE";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0cXVhanlkaml0ZmpocXZlemZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc2MjA1MzQsImV4cCI6MjA4MzE5NjUzNH0.3cenuqB4XffJdRQisJQhq7PS9_ybXDN7ExbsKfXx9gU";
 
 const supabaseClient =
   typeof supabase !== "undefined"
@@ -128,6 +129,7 @@ const supabaseClient =
 function showAuthMessage(text, type = "error") {
   const box = document.getElementById("authMessage");
   if (!box) return;
+
   box.textContent = text;
   box.className = `auth-message ${type}`;
   box.style.display = "block";
@@ -136,8 +138,9 @@ function showAuthMessage(text, type = "error") {
 /*********************************************************
  * EMAIL LOGIN
  *********************************************************/
-async function login(e) {
-  e.preventDefault();
+async function login(event) {
+  event.preventDefault();
+  if (!supabaseClient) return;
 
   const email = document.getElementById("email")?.value.trim();
   const password = document.getElementById("password")?.value;
@@ -164,8 +167,9 @@ async function login(e) {
 /*********************************************************
  * EMAIL SIGNUP
  *********************************************************/
-async function signup(e) {
-  e.preventDefault();
+async function signup(event) {
+  event.preventDefault();
+  if (!supabaseClient) return;
 
   const email = document.getElementById("email")?.value.trim();
   const password = document.getElementById("password")?.value;
@@ -175,15 +179,21 @@ async function signup(e) {
     return;
   }
 
-  if (password.length < 6 || !/[a-z]/i.test(password) || !/[0-9]/.test(password)) {
+  const hasLetter = /[a-zA-Z]/.test(password);
+  const hasNumber = /[0-9]/.test(password);
+
+  if (password.length < 6 || !hasLetter || !hasNumber) {
     showAuthMessage(
-      "Password must be at least 6 characters and include letters & numbers.",
+      "Password must be at least 6 characters and include letters and numbers.",
       "error"
     );
     return;
   }
 
-  const { error } = await supabaseClient.auth.signUp({ email, password });
+  const { error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+  });
 
   if (error) {
     showAuthMessage("Account already exists or invalid email.", "error");
@@ -197,26 +207,39 @@ async function signup(e) {
 }
 
 /*********************************************************
- * GOOGLE LOGIN / SIGNUP
+ * GOOGLE LOGIN (LOGIN PAGE — BLOCK NEW USERS)
  *********************************************************/
 async function googleLogin() {
-  await supabaseClient.auth.signInWithOAuth({
-    provider: "google",
-    options: { redirectTo: window.location.origin + "/login.html" },
-  });
-}
+  if (!supabaseClient) return;
 
-async function googleSignup() {
   await supabaseClient.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo: window.location.origin + "/signup.html" },
+    options: {
+      redirectTo: window.location.origin + "/login.html",
+    },
   });
 }
 
 /*********************************************************
- * GOOGLE RETURN HANDLER
+ * GOOGLE SIGNUP (SIGNUP PAGE — CREATE ONLY)
+ *********************************************************/
+async function googleSignup() {
+  if (!supabaseClient) return;
+
+  await supabaseClient.auth.signInWithOAuth({
+    provider: "google",
+    options: {
+      redirectTo: window.location.origin + "/signup.html",
+    },
+  });
+}
+
+/*********************************************************
+ * GOOGLE RETURN HANDLER (LOGIN / SIGNUP LOGIC)
  *********************************************************/
 document.addEventListener("DOMContentLoaded", async () => {
+  if (!supabaseClient) return;
+
   const { data } = await supabaseClient.auth.getUser();
   if (!data?.user) return;
 
@@ -230,6 +253,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     .eq("id", user.id)
     .single();
 
+  /* SIGNUP PAGE */
   if (isSignup) {
     if (!profile) {
       await supabaseClient.from("profiles").insert({
@@ -237,28 +261,26 @@ document.addEventListener("DOMContentLoaded", async () => {
         email: user.email,
       });
     }
+
     showAuthMessage("Account created successfully. Please login.", "success");
     await supabaseClient.auth.signOut();
     return;
   }
 
+  /* LOGIN PAGE */
   if (isLogin) {
     if (!profile) {
       await supabaseClient.auth.signOut();
-      showAuthMessage("Account not found. Please sign up first.", "error");
+      showAuthMessage(
+        "Account not found. Please sign up first.",
+        "error"
+      );
       return;
     }
+
     window.location.href = "dashboard.html";
   }
 });
-
-/*********************************************************
- * LOGOUT
- *********************************************************/
-async function logout() {
-  await supabaseClient.auth.signOut();
-  window.location.href = "login.html";
-}
 
 /*********************************************************
  * NAVBAR + THEME
@@ -295,3 +317,19 @@ document.addEventListener("DOMContentLoaded", () => {
     localStorage.setItem("theme", next);
   });
 });
+async function logout() {
+  if (!supabaseClient) return;
+
+  const { error } = await supabaseClient.auth.signOut();
+
+  if (error) {
+    alert("Logout failed. Try again.");
+    return;
+  }
+
+  // Optional: clear local storage (theme, UI prefs stay if you want)
+  localStorage.removeItem("supabase.auth.token");
+
+  // Redirect to login
+  window.location.href = "login.html";
+}
