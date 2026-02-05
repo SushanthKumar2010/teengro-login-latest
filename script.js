@@ -333,3 +333,63 @@ async function logout() {
   // Redirect to login
   window.location.href = "login.html";
 }
+function showMessage(text, type) {
+  const box = document.getElementById("msg");
+  box.textContent = text;
+  box.className = `msg ${type}`;
+  box.style.display = "block";
+}
+
+/*********************************************************
+ * LISTEN FOR RECOVERY SESSION
+ *********************************************************/
+supabaseClient.auth.onAuthStateChange((event) => {
+  if (event === "PASSWORD_RECOVERY") {
+    console.log("Password recovery session active");
+  }
+});
+
+/*********************************************************
+ * RESET PASSWORD
+ *********************************************************/
+async function resetPassword() {
+  const password = document.getElementById("password").value;
+  const confirm = document.getElementById("confirm").value;
+
+  if (!password || !confirm) {
+    showMessage("Please fill all fields.", "error");
+    return;
+  }
+
+  if (password !== confirm) {
+    showMessage("Passwords do not match.", "error");
+    return;
+  }
+
+  if (
+    password.length < 6 ||
+    !/[a-zA-Z]/.test(password) ||
+    !/[0-9]/.test(password)
+  ) {
+    showMessage(
+      "Password must be at least 6 characters and include letters and numbers.",
+      "error"
+    );
+    return;
+  }
+
+  const { error } = await supabaseClient.auth.updateUser({
+    password,
+  });
+
+  if (error) {
+    showMessage("Reset link expired or invalid.", "error");
+    return;
+  }
+
+  showMessage("Password updated successfully. Redirecting to login…", "success");
+
+  setTimeout(() => {
+    window.location.href = "login.html";
+  }, 2000);
+}
