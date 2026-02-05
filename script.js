@@ -393,3 +393,7 @@ async function resetPassword() {
     window.location.href = "login.html";
   }, 2000);
 }
+await supabaseClient.auth.resetPasswordForEmail(email, {
+  redirectTo: window.location.origin + "/reset-password.html",
+});
+
