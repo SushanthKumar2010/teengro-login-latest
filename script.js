@@ -259,3 +259,39 @@ async function logout() {
   await supabaseClient.auth.signOut();
   window.location.href = "login.html";
 }
+
+/*********************************************************
+ * NAVBAR + THEME
+ *********************************************************/
+document.addEventListener("DOMContentLoaded", () => {
+  const menuToggle = document.getElementById("menuToggle");
+  const menuDropdown = document.getElementById("menuDropdown");
+  const themeToggle = document.getElementById("themeToggle");
+
+  document.body.setAttribute(
+    "data-theme",
+    localStorage.getItem("theme") || "dark"
+  );
+
+  menuToggle?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    menuDropdown?.classList.toggle("open");
+  });
+
+  document.addEventListener("click", (e) => {
+    if (
+      menuDropdown &&
+      !menuDropdown.contains(e.target) &&
+      !menuToggle?.contains(e.target)
+    ) {
+      menuDropdown.classList.remove("open");
+    }
+  });
+
+  themeToggle?.addEventListener("click", () => {
+    const next =
+      document.body.dataset.theme === "dark" ? "light" : "dark";
+    document.body.dataset.theme = next;
+    localStorage.setItem("theme", next);
+  });
+});
